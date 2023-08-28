@@ -25,7 +25,7 @@ serve(async (req) => {
         // get data
         const { data: resp } = await supabase
             .from("access")
-            .select("access-key, data ( id, name, timestamp )")
+            .select("data ( id )")
             .eq("token", ownerId);
 
         if (resp == null || resp.length == 0) {
@@ -33,34 +33,11 @@ serve(async (req) => {
         }
         const respObj = JSON.parse(JSON.stringify(resp[0]));
 
-        const body = {
-            accessKey: respObj["access-key"],
-            name: respObj.data.name,
-        };
+        // delete
+        await supabase.from("data").delete().eq("id", respObj.data.id);
 
-        // check if is expired
-        const now = new Date().valueOf();
-        const timestamp = new Date(respObj.data.timestamp).valueOf();
-        if (now - timestamp > 300000) {
-            await supabase.from("data").delete().eq("id", respObj.data.id);
-            return getErrorResponse("Data has expired", 410);
-        }
-
-        // check if data is locked
-        const { data: lockEntry } = await supabase
-            .from("lock-entries")
-            .select("data-id")
-            .eq("data-id", respObj.data.id);
-
-        if (lockEntry == null || lockEntry.length != 0) {
-            return getErrorResponse(
-                "Data is currently locked, please refresh acceess key",
-                409
-            );
-        }
-
-        return new Response(JSON.stringify(body), {
-            headers: { "Content-Type": "application/json" },
+        return new Response("Successfully deleted", {
+            headers: { "Content-Type": "text" },
         });
     } catch (_) {
         return getErrorResponse("An unexpected error occurred", 500);

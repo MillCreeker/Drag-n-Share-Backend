@@ -1,11 +1,11 @@
-// import { createClient } from "https://esm.sh/@supabase/supabase-js@2.32.0";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.32.0";
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import * as uuid from "https://deno.land/std@0.194.0/uuid/mod.ts";
 
 const supabase = createClient(
     Deno.env.get("_SUPABASE_URL")!,
-    Deno.env.get("_SUPABASE_SERVICE_KEY")!
+    Deno.env.get("_SUPABASE_SERVICE_KEY")!,
+    { auth: { persistSession: false } }
 );
 
 // deno-lint-ignore no-explicit-any
@@ -57,7 +57,7 @@ serve(async (req) => {
             .from("data")
             .select("name")
             .eq("name", name);
-        
+
         if (resp != null) {
             if (resp.length > 0) {
                 return getErrorResponse("Name already exists", 409);
@@ -73,11 +73,28 @@ serve(async (req) => {
         }
 
         if (!isTextOnly) {
-            // TODO some more checks for files
+            let files;
+
+            try {
+                files = JSON.parse(data);
+            } catch (_) {
+                return getErrorResponse("Wrong data format", 400);
+            }
+
+            if (files.length == 0) {
+                return getErrorResponse("No files received", 413);
+            }
+
+            if (files.length > 4) {
+                return getErrorResponse(
+                    "Maximum number of files (4) exceeded",
+                    413
+                );
+            }
         }
 
-        if (data.length > 1073741824) {
-            return getErrorResponse("Maximum data size (1GB) exceeded", 413);
+        if (data.length > 450000000) {
+            return getErrorResponse("Maximum data size (400MB) exceeded", 413);
         }
 
         const id = uuid.v1.generate();

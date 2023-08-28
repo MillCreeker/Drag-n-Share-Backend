@@ -14,6 +14,10 @@ function getErrorResponse(message: string, code: number) {
     });
 }
 
+function genAccessKey() {
+    return Math.random().toString().substring(2, 8);
+}
+
 serve(async (req) => {
     try {
         const ownerId = req.headers.get("access");
@@ -25,7 +29,7 @@ serve(async (req) => {
         // get data
         const { data: resp } = await supabase
             .from("access")
-            .select("access-key, data ( id, name, timestamp )")
+            .select("data ( id, name, timestamp )")
             .eq("token", ownerId);
 
         if (resp == null || resp.length == 0) {
@@ -34,8 +38,8 @@ serve(async (req) => {
         const respObj = JSON.parse(JSON.stringify(resp[0]));
 
         const body = {
-            accessKey: respObj["access-key"],
             name: respObj.data.name,
+            accessKey: genAccessKey(),
         };
 
         // check if is expired
@@ -53,11 +57,48 @@ serve(async (req) => {
             .eq("data-id", respObj.data.id);
 
         if (lockEntry == null || lockEntry.length != 0) {
-            return getErrorResponse(
-                "Data is currently locked, please refresh acceess key",
-                409
-            );
+            await supabase
+                .from("lock-entries")
+                .delete()
+                .eq("data-id", respObj.data.id);
         }
+
+        // change name
+        let newName: string;
+
+        try {
+            const request = await req.json();
+            newName = request.name;
+        } catch (_) {
+            newName = "";
+        }
+
+        if (newName != "" && newName != body.name) {
+            const { data: resp } = await supabase
+                .from("data")
+                .select("name")
+                .eq("name", newName);
+
+            if (resp != null && resp.length > 0) {
+                return getErrorResponse(
+                    "Name already exists, please choose a different one",
+                    409
+                );
+            }
+
+            await supabase
+                .from("data")
+                .update({ name: newName })
+                .eq("id", respObj.data.id);
+
+            body.name = newName;
+        }
+
+        // change access-key
+        await supabase
+            .from("access")
+            .update({ "access-key": body.accessKey })
+            .eq("token", ownerId);
 
         return new Response(JSON.stringify(body), {
             headers: { "Content-Type": "application/json" },
