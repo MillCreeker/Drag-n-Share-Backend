@@ -56,7 +56,7 @@ serve(async (req) => {
             .select("data-id")
             .eq("data-id", respObj.data.id);
 
-        if (lockEntry == null || lockEntry.length != 0) {
+        if (lockEntry != null && lockEntry.length != 0) {
             await supabase
                 .from("lock-entries")
                 .delete()

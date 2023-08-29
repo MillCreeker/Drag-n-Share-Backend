@@ -36,8 +36,8 @@ function genAccessKey() {
 serve(async (req) => {
     try {
         let request;
-        let name;
-        let data;
+        let name: string;
+        let data: string;
         let isTextOnly;
 
         try {
