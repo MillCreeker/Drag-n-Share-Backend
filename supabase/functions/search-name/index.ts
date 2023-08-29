@@ -1,20 +1,14 @@
-import { createClient } from "https://esm.sh/@supabase/supabase-js@2.32.0";
-import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
+import { serve } from "https://deno.land/std@0.177.0/http/server.ts";
+import { corsHeaders } from "../_shared/cors.ts";
+import { getErrorResponse, getSupabaseClient } from "../_shared/functions.ts";
 
-const supabase = createClient(
-    Deno.env.get("_SUPABASE_URL")!,
-    Deno.env.get("_SUPABASE_SERVICE_KEY")!,
-    { auth: { persistSession: false } }
-);
-
-function getErrorResponse(message: string, code: number) {
-    return new Response(message, {
-        headers: { "Content-Type": "text" },
-        status: code,
-    });
-}
+const supabase = getSupabaseClient();
 
 serve(async (req) => {
+    if (req.method === "OPTIONS") {
+        return new Response("ok", { headers: corsHeaders });
+    }
+
     try {
         let name: string;
 
@@ -63,7 +57,7 @@ serve(async (req) => {
         }
 
         return new Response("Name found", {
-            headers: { "Content-Type": "text" },
+            headers: { ...corsHeaders, "Content-Type": "text" },
         });
     } catch (_) {
         return getErrorResponse("An unexpected error occurred", 500);

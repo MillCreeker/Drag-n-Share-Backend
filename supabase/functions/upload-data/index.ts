@@ -1,39 +1,20 @@
-import { createClient } from "https://esm.sh/@supabase/supabase-js@2.32.0";
-import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
+import { serve } from "https://deno.land/std@0.177.0/http/server.ts";
 import * as uuid from "https://deno.land/std@0.194.0/uuid/mod.ts";
+import { corsHeaders } from "../_shared/cors.ts";
+import {
+    getErrorResponse,
+    getSupabaseClient,
+    genAccessKey,
+    isInitial,
+} from "../_shared/functions.ts";
 
-const supabase = createClient(
-    Deno.env.get("_SUPABASE_URL")!,
-    Deno.env.get("_SUPABASE_SERVICE_KEY")!,
-    { auth: { persistSession: false } }
-);
-
-// deno-lint-ignore no-explicit-any
-function isInitial(value: any) {
-    if (
-        typeof value == "undefined" ||
-        value == null ||
-        value == "" ||
-        value.length == 0
-    ) {
-        return true;
-    }
-
-    return false;
-}
-
-function getErrorResponse(message: string, code: number) {
-    return new Response(message, {
-        headers: { "Content-Type": "text" },
-        status: code,
-    });
-}
-
-function genAccessKey() {
-    return Math.random().toString().substring(2, 8);
-}
+const supabase = getSupabaseClient();
 
 serve(async (req) => {
+    if (req.method === "OPTIONS") {
+        return new Response("ok", { headers: corsHeaders });
+    }
+
     try {
         let request;
         let name: string;
@@ -116,7 +97,7 @@ serve(async (req) => {
             ]);
 
         return new Response(ownerId.toString(), {
-            headers: { "Content-Type": "text" },
+            headers: { ...corsHeaders, "Content-Type": "text" },
         });
     } catch (_) {
         return getErrorResponse("An unexpected error occurred", 500);
